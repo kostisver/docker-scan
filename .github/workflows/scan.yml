@@ -1,0 +1,72 @@
+## Scan a docker image -> get a SARIF/SBOM report
+
+name: SBOM/SCA Scout
+
+on:
+  workflow_dispatch:
+    inputs:
+        docker_image:
+          description: 'The Docker image to scan'
+          required: true
+          default: 'ghcr.io/kostisver/devsecops-app:latest'
+
+jobs:
+  scout:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      packages: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Login to GHCR
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pull the image
+      - name: Pull the image
+        run: docker pull ${{ github.event.inputs.docker_image }}
+
+      # Run Docker Scout scan
+      - name: Docker Scout Scan
+        uses: docker/scout-action@v1
+        with:
+          command: cves,recommendations,sbom
+          image: ${{ github.event.inputs.docker_image }}
+          exit-code: false
+          sarif-file: sca_scout.sarif
+          output: sbom_scout.spdx.json
+          format: spdx
+
+      # Upload SBOM artifact
+      - name: Upload SBOM file
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom_scout.spdx.json
+          path: sbom_scout.spdx.json
+
+      # Upload SARIF artifact
+      - name: Upload SARIF file
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca_scout.sarif
+          path: sca_scout.sarif
+
+      # Upload SARIF to GitHub Security tab
+      - name: Upload SARIF to Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sca_scout.sarif
+          category: Security/SCA
+
+      # Upload SBOM to dependency graph
+      - name: SBOM upload
+        uses: advanced-security/spdx-dependency-submission-action@v0.1.1
