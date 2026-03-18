@@ -76,5 +76,5 @@ jobs:
           category: Security/SCA
 
       # Upload SBOM to dependency graph
-      - name: SBOM upload
-        uses: advanced-security/spdx-dependency-submission-action@v0.1.1
+      #- name: SBOM upload
+      #  uses: advanced-security/spdx-dependency-submission-action@v0.1.1
